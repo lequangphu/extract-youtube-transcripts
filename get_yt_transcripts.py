@@ -5,6 +5,7 @@ import googleapiclient.errors # Import specific API errors
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from datetime import datetime # To parse the published date
 from dotenv import load_dotenv # Import dotenv
+import re # Import regex for sanitizing filenames
 
 # --- Load Environment Variables ---
 load_dotenv() # Load variables from .env file
