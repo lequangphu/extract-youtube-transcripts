@@ -32,6 +32,20 @@ def get_ordinal(n):
         suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
     return str(n) + suffix
 
+# --- Helper Function to Sanitize Filenames ---
+def sanitize_filename(name):
+    """Removes or replaces characters invalid for directory/file names."""
+    # Remove invalid characters: < > : " / \ | ? *
+    sanitized = re.sub(r'[<>:"/\\|?*]', '', name)
+    # Replace potential leading/trailing whitespace and reduce multiple spaces
+    sanitized = ' '.join(sanitized.strip().split())
+    # Optional: Replace spaces with underscores
+    # sanitized = sanitized.replace(' ', '_')
+    # Optional: Limit length
+    # max_len = 100
+    # sanitized = sanitized[:max_len]
+    return sanitized if sanitized else "youtube_channel" # Fallback name
+
 # --- Helper Function to Format Video Entry ---
 def format_video_entry(video_number, video_id, metadata, transcript_text, transcript_lang):
     """Formats the text block for a single video entry."""
@@ -86,31 +100,34 @@ def get_youtube_service():
         return None
 
 def get_channel_upload_playlist_id(youtube, channel_id):
-    """Gets the ID of the channel's 'uploads' playlist."""
+    """Gets the ID of the channel's 'uploads' playlist and the channel title."""
     if not youtube:
-        return None
+        return None, None
     try:
         request = youtube.channels().list(
-            part="contentDetails",
+            part="contentDetails,snippet", # Add snippet to get title
             id=channel_id
         )
         response = request.execute()
         items = response.get("items")
         if not items:
             print(f"Channel not found or no content details for ID: {channel_id}")
-            return None
-        content_details = items[0].get("contentDetails", {})
+            return None, None
+
+        channel_item = items[0]
+        content_details = channel_item.get("contentDetails", {})
+        snippet = channel_item.get("snippet", {}) # Get the snippet
+
         related_playlists = content_details.get("relatedPlaylists", {})
         uploads_playlist_id = related_playlists.get("uploads")
+        channel_title = snippet.get("title", "Unknown Channel") # Get the title
+
         if not uploads_playlist_id:
              print(f"Could not find 'uploads' playlist ID for channel {channel_id}")
-             return None
-        return uploads_playlist_id
+             return None, channel_title # Still return title if found
+        return uploads_playlist_id, channel_title
     except googleapiclient.errors.HttpError as e:
         print(f"API Error fetching channel details for {channel_id}: {e}")
-        return None
-    except Exception as e:
-        print(f"Error fetching channel details for {channel_id}: {e}")
         return None
 
 def get_all_video_ids_in_playlist(youtube, playlist_id):
@@ -292,10 +309,11 @@ if __name__ == "__main__":
 
         if youtube_service:
             print(f"Fetching uploads playlist ID for channel: {TARGET_CHANNEL_ID}")
-            upload_playlist_id = get_channel_upload_playlist_id(youtube_service, TARGET_CHANNEL_ID)
+            upload_playlist_id, channel_title = get_channel_upload_playlist_id(youtube_service, TARGET_CHANNEL_ID)
 
             if upload_playlist_id:
                 print(f"Found uploads playlist ID: {upload_playlist_id}")
+                print(f"Channel Title: {channel_title}")
                 print("Fetching all video IDs from the playlist...")
                 # Consider reversing if you want "1st" to be the oldest video
                 video_ids = get_all_video_ids_in_playlist(youtube_service, upload_playlist_id)
@@ -318,8 +336,10 @@ if __name__ == "__main__":
                     current_word_count = 0
                     current_file_handle = None
                     current_filename_temp = None # Temporary name while file is being written
-                    file_start_video_number = 1 # 1-based index of the first video in the current file
-                    output_dir = "transcripts_output" # Define an output directory
+                    file_start_video_number = 1 # 1-based index for naming
+                    # Create output directory based on sanitized channel name
+                    sanitized_channel_name = sanitize_filename(channel_title)
+                    output_dir = os.path.join("transcripts_output", sanitized_channel_name) # Store in a sub-folder
                     os.makedirs(output_dir, exist_ok=True) # Create the directory if it doesn't exist
 
                     try: # Wrap the loop in try...finally to ensure the last file is closed/renamed
@@ -390,7 +410,7 @@ if __name__ == "__main__":
                                     # Write a header to the new file
                                     header = (
                                         f"--- YouTube Channel Transcript Export ---\n"
-                                        f"Channel ID: {TARGET_CHANNEL_ID}\n"
+                                        f"Channel: {channel_title} (ID: {TARGET_CHANNEL_ID})\n"
                                         f"Export Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                         f"Total Videos Found (in channel): {total_videos}\n"
                                         f"Preferred Languages: {', '.join(PREFERRED_LANGUAGES)}\n"
@@ -453,7 +473,7 @@ if __name__ == "__main__":
                     print(f"Successfully fetched transcripts for: {successful_transcripts} videos.")
                     print(f"Videos with metadata/transcript issues: {videos_with_issues}")
                     if output_filenames:
-                         print(f"Output files created in '{output_dir}/':")
+                         print(f"Output files created in directory: '{output_dir}'")
                          for fname in output_filenames:
                              print(f"- {os.path.basename(fname)}") # Print only filename for clarity
                     else:
