@@ -21,7 +21,7 @@ DEVELOPER_KEY = os.getenv("YOUTUBE_API_KEY")
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 # Channel ID for @1000xPodcast (Example)
-TARGET_CHANNEL_ID = "UC2D2CMWXMOVWx7giW1n3LIg"
+TARGET_CHANNEL_ID = "UCRYY7IEbkHLH_ScJCu9eWDQ"
 # Preferred transcript languages (order matters)
 PREFERRED_LANGUAGES = ["en"]
 # Maximum approximate words per output file
