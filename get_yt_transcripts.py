@@ -3,10 +3,10 @@ import re  # Import regex for sanitizing filenames
 import time
 from datetime import datetime  # To parse the published date
 
-import googleapiclient.discovery
-import googleapiclient.errors  # Import specific API errors
-from dotenv import load_dotenv  # Import dotenv
-from youtube_transcript_api import (
+import googleapiclient.discovery  # type: ignore
+import googleapiclient.errors  # type: ignore # Import specific API errors
+from dotenv import load_dotenv  # type: ignore # Import dotenv
+from youtube_transcript_api import (  # type: ignore
     NoTranscriptFound,
     TranscriptsDisabled,
     YouTubeTranscriptApi,
